@@ -37,22 +37,22 @@ const FONT_BODY = "'Atkinson Hyperlegible', system-ui, sans-serif";
 const FONT_DISPLAY = "'Archivo', system-ui, sans-serif";
 
 /* ---------- persistence ---------- */
----async function loadKey(key, fallback) {
-     try {
-       if (typeof window !== "undefined" && window.localStorage) {
-         const val = window.localStorage.getItem(key);
-         if (val) return JSON.parse(val);
-       }
-     } catch (e) {}
-     return fallback;
-   }
-   async function saveKey(key, val) {
-     try {
-       if (typeof window !== "undefined" && window.localStorage) {
-         window.localStorage.setItem(key, JSON.stringify(val));
-       }
-     } catch (e) {}
-   }
+async function loadKey(key, fallback) {
+  try {
+    if (typeof window !== "undefined" && window.localStorage) {
+      const val = window.localStorage.getItem(key);
+      if (val) return JSON.parse(val);
+    }
+  } catch (e) {}
+  return fallback;
+}
+async function saveKey(key, val) {
+  try {
+    if (typeof window !== "undefined" && window.localStorage) {
+      window.localStorage.setItem(key, JSON.stringify(val));
+    }
+  } catch (e) {}
+}
 
 /* ---------- theme ---------- */
 function getTheme(name) {
