@@ -26,6 +26,7 @@ const INSTRUMENTS = {
 const ALL_INSTRUMENTS = Object.values(INSTRUMENTS).flat();
 
 const SESSIONS = ["Sydney", "Tokyo", "Frankfurt", "London", "New York"];
+const PROP_FIRMS = ["FTMO", "MyForexFunds", "The5ers", "FundedNext", "E8 Funding", "True Forex Funds", "Topstep", "Apex Trader", "My Funded Futures", "BluSky"];
 const SETUPS = ["Breakout", "Pullback", "Trend", "Reversal", "Range", "Supply/Demand", "Order block", "News", "Scalp"];
 const EMOTIONS = ["Calm", "Confident", "Neutral", "Anxious", "FOMO", "Greedy", "Fearful", "Revenge", "Impatient"];
 const MISTAKES = ["No stop loss", "Moved stop", "Over-leveraged", "FOMO entry", "Revenge trade", "Closed early", "Chased price", "No clear setup", "Ignored plan", "Overtrading"];
@@ -122,6 +123,7 @@ function postMoodsOf(trade) {
 
 const emptyDraft = () => ({
   date: todayISO(), pnl: "", instrument: "", direction: "",
+  propFirm: "", customFirm: "",
   session: "", setups: [], customSetup: "", entry: "", stopLoss: "", takeProfit: "", lots: "",
   entryQuality: 5, outcome: "", hitTP: "", movedSL: "",
   preEmotions: [], confidence: 5, mistakeTags: [], followedPlan: "", reflection: "", postMoods: [],
@@ -141,6 +143,7 @@ export default function App() {
   const [flashMsg, setFlashMsg] = useState("");
   const [keypad, setKeypad] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [selectedFirm, setSelectedFirm] = useState("All");
   const flashTimer = useRef(null);
 
   const T = getTheme(settings.theme);
@@ -221,6 +224,8 @@ export default function App() {
       customSetup: trade.customSetup || "",
       preEmotions: Array.isArray(trade.preEmotions) ? trade.preEmotions : (trade.preEmotion ? [trade.preEmotion] : []),
       postMoods: Array.isArray(trade.postMoods) ? trade.postMoods : (trade.postMood ? [trade.postMood] : []),
+      propFirm: trade.propFirm || "",
+      customFirm: trade.customFirm || "",
     });
     setEditingId(trade.id);
     setView("log");
@@ -276,13 +281,31 @@ export default function App() {
         <div role="status" aria-live="polite" data-anim style={{ position: "fixed", top: 64, left: "50%", transform: "translateX(-50%)", zIndex: 60, background: T.primary, color: T.primaryText, fontWeight: 800, fontSize: fs.sm, padding: "10px 18px", borderRadius: 10, boxShadow: T.shadow, animation: "pop .15s ease", maxWidth: "92%", textAlign: "center" }}>{flashMsg}</div>
       )}
 
-      <main style={{ maxWidth: 560, margin: "0 auto", padding: 12, paddingBottom: 96 }}>
-        {view === "log" && <LogTrade {...{ T, fs, cur, draft, setDraft, openKeypad, buzz, flash, addTrade, editingId, cancelEdit }} />}
-        {view === "journal" && <JournalView {...{ T, fs, cur, trades, deleteTrade, editTrade, buzz, loaded, goLog: () => setView("log") }} />}
-        {view === "psych" && <PsychView {...{ T, fs, cur, trades }} />}
-        {view === "stats" && <StatsView {...{ T, fs, cur, trades, flash }} />}
-        {view === "review" && <ReviewView {...{ T, fs, reviewDraft, setReviewDraft, saveReview, reviews, deleteReview, buzz, flash }} />}
-      </main>
+      {/* Firm filter bar — always visible so analytics stay firm-specific */}
+      {(() => {
+        const firmNames = (trade) => trade.customFirm && trade.customFirm.trim() ? trade.customFirm.trim() : (trade.propFirm || "Unassigned");
+        const allFirms = ["All", ...Array.from(new Set(trades.map(firmNames))).sort()];
+        const filteredTrades = selectedFirm === "All" ? trades : trades.filter((t) => firmNames(t) === selectedFirm);
+        return (
+          <>
+            <div style={{ background: T.surfaceAlt, borderBottom: `2px solid ${T.border}`, padding: "8px 12px", overflowX: "auto", display: "flex", gap: 8, alignItems: "center" }}>
+              <span style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: fs.xs, color: T.muted, whiteSpace: "nowrap" }}>FIRM:</span>
+              {allFirms.map((f) => {
+                const on = selectedFirm === f;
+                return <button key={f} className="fxbtn" onClick={() => { buzz(); setSelectedFirm(f); }} aria-pressed={on} style={{ flex: "0 0 auto", minHeight: 36, padding: "0 12px", borderRadius: 8, fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: fs.xs, background: on ? T.primary : T.surface, color: on ? T.primaryText : T.text, border: `2px solid ${on ? T.primary : T.border}`, whiteSpace: "nowrap" }}>{f}</button>;
+              })}
+            </div>
+
+            <main style={{ maxWidth: 560, margin: "0 auto", padding: 12, paddingBottom: 96 }}>
+              {view === "log" && <LogTrade {...{ T, fs, cur, draft, setDraft, openKeypad, buzz, flash, addTrade, editingId, cancelEdit }} />}
+              {view === "journal" && <JournalView {...{ T, fs, cur, trades: filteredTrades, allTrades: trades, deleteTrade, editTrade, buzz, loaded, goLog: () => setView("log"), selectedFirm }} />}
+              {view === "psych" && <PsychView {...{ T, fs, cur, trades: filteredTrades, selectedFirm }} />}
+              {view === "stats" && <StatsView {...{ T, fs, cur, trades: filteredTrades, allTrades: trades, flash, selectedFirm }} />}
+              {view === "review" && <ReviewView {...{ T, fs, reviewDraft, setReviewDraft, saveReview, reviews, deleteReview, buzz, flash }} />}
+            </main>
+          </>
+        );
+      })()}
 
       {/* Bottom nav */}
       <nav style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 30, background: T.surface, borderTop: `2px solid ${T.border}`, display: "flex", padding: "6px 6px calc(6px + env(safe-area-inset-bottom))", gap: 5, maxWidth: 560, margin: "0 auto" }}>
@@ -456,6 +479,12 @@ function LogTrade({ T, fs, cur, draft, setDraft, openKeypad, buzz, flash, addTra
         </div>
       </Section>
 
+      {/* Prop Firm */}
+      <Section T={T} fs={fs} title="Prop Firm" accent={draft.propFirm || draft.customFirm ? T.primary : undefined}>
+        <Chips options={PROP_FIRMS} value={draft.propFirm} onChange={(v) => set({ propFirm: v, customFirm: "" })} columns={2} T={T} fs={fs} buzz={buzz} />
+        <input value={draft.customFirm} onChange={(e) => set({ customFirm: e.target.value, propFirm: "" })} placeholder="+ Type your own firm name" aria-label="Custom prop firm name" style={{ width: "100%", minHeight: 48, marginTop: 8, borderRadius: 10, border: `2px solid ${draft.customFirm ? T.primary : T.border}`, background: T.surface, color: T.text, fontFamily: FONT_BODY, fontSize: fs.body, padding: "0 12px" }} />
+      </Section>
+
       {/* Instrument */}
       <Section T={T} fs={fs} title="Instrument">
         {Object.entries(INSTRUMENTS).map(([group, list]) => (
@@ -541,7 +570,7 @@ function LogTrade({ T, fs, cur, draft, setDraft, openKeypad, buzz, flash, addTra
 }
 
 /* ===================== JOURNAL ===================== */
-function JournalView({ T, fs, cur, trades, deleteTrade, editTrade, buzz, loaded, goLog }) {
+function JournalView({ T, fs, cur, trades, allTrades, deleteTrade, editTrade, buzz, loaded, goLog, selectedFirm }) {
   const [pairFilter, setPairFilter] = useState("All");
   const [outFilter, setOutFilter] = useState("all");
   const [confirm, setConfirm] = useState(null);
@@ -578,6 +607,7 @@ function TradeRow({ T, fs, cur, trade, confirm, setConfirm, deleteTrade, editTra
         <div style={{ minWidth: 0 }}>
           <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 900, fontSize: fs.md }}>{trade.instrument}</div>
           <div style={{ color: T.muted, fontSize: fs.xs, fontWeight: 700 }}>{trade.date}{trade.session ? " · " + trade.session : ""}{setupText(trade) ? " · " + setupText(trade) : ""}</div>
+          {(trade.propFirm || trade.customFirm) && <div style={{ marginTop: 2, display: "inline-block", padding: "1px 8px", borderRadius: 6, background: T.primary, color: T.primaryText, fontSize: fs.xs, fontWeight: 800 }}>{trade.customFirm || trade.propFirm}</div>}
         </div>
         <span style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 9px", borderRadius: 8, background: dc, color: dtc, fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: fs.xs }}>{long ? <TrendingUp size={Math.round(fs.xs)} strokeWidth={3} /> : <TrendingDown size={Math.round(fs.xs)} strokeWidth={3} />}{long ? "LONG" : "SHORT"}</span>
       </div>
@@ -751,7 +781,7 @@ function MiniBars({ data, format, highlight, T, fs, cur }) {
 }
 
 /* ===================== PSYCH (analysis centrepiece) ===================== */
-function PsychView({ T, fs, cur, trades }) {
+function PsychView({ T, fs, cur, trades, selectedFirm }) {
   const A = analyse(trades);
   const insights = buildInsights(trades, cur);
   const avg = (arr, f) => { const xs = arr.map(f).filter((x) => typeof x === "number" && !isNaN(x)); return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null; };
@@ -832,11 +862,12 @@ function Mini({ T, fs, label, v, suffix }) {
   );
 }
 /* ===================== STATS ===================== */
-function StatsView({ T, fs, cur, trades, flash }) {
+function StatsView({ T, fs, cur, trades, allTrades, flash, selectedFirm }) {
   const A = analyse(trades);
   const exportCSV = () => {
-    const cols = ["date", "instrument", "direction", "session", "setup", "entry", "stopLoss", "takeProfit", "lots", "rr", "pnl", "outcome", "hitTP", "movedSL", "preEmotion", "confidence", "entryQuality", "mistakeTags", "followedPlan", "postMood", "reflection"];
-    const valOf = (t, c) => (c === "setup" ? setupText(t) : c === "preEmotion" ? preEmotionsOf(t) : c === "postMood" ? postMoodsOf(t) : t[c]);
+    const cols = ["date", "propFirm", "instrument", "direction", "session", "setup", "entry", "stopLoss", "takeProfit", "lots", "rr", "pnl", "outcome", "hitTP", "movedSL", "preEmotion", "confidence", "entryQuality", "mistakeTags", "followedPlan", "postMood", "reflection"];
+    const firmName = (t) => t.customFirm && t.customFirm.trim() ? t.customFirm.trim() : (t.propFirm || "");
+    const valOf = (t, c) => (c === "setup" ? setupText(t) : c === "preEmotion" ? preEmotionsOf(t) : c === "postMood" ? postMoodsOf(t) : c === "propFirm" ? firmName(t) : t[c]);
     const cell = (v) => { if (v == null) return ""; const s = Array.isArray(v) ? v.join("; ") : String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
     const csv = [cols.join(","), ...trades.map((t) => cols.map((c) => cell(valOf(t, c))).join(","))].join("\n");
     download("fx-journal.csv", csv, "text/csv;charset=utf-8;");
@@ -895,6 +926,24 @@ function StatsView({ T, fs, cur, trades, flash }) {
         <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto auto", gap: 8, fontSize: fs.xs, color: T.muted, fontWeight: 800, paddingBottom: 6, borderBottom: `2px solid ${T.border}` }}><span>Pair</span><span>Trades</span><span>WR</span><span>P&L</span></div>
         {pairRows.map((r) => <div key={r.p} style={{ display: "grid", gridTemplateColumns: "1fr auto auto auto", gap: 8, alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${T.border}`, fontSize: fs.sm }}><span style={{ fontWeight: 700 }}>{r.p}</span><span style={{ textAlign: "right" }}>{r.n}</span><span style={{ textAlign: "right" }}>{r.wr == null ? "—" : r.wr + "%"}</span><span style={{ textAlign: "right", fontFamily: FONT_DISPLAY, fontWeight: 800, color: r.pnl > 0 ? T.buy : r.pnl < 0 ? T.sell : T.text }}>{fmtMoney(r.pnl, cur)}</span></div>)}
       </Section>
+
+      {selectedFirm === "All" && (() => {
+        const firmName = (t) => t.customFirm && t.customFirm.trim() ? t.customFirm.trim() : (t.propFirm || "Unassigned");
+        const firms = Array.from(new Set((allTrades || trades).map(firmName))).sort();
+        const firmRows = firms.map((f) => {
+          const ts = (allTrades || trades).filter((t) => firmName(t) === f);
+          const d = ts.filter((t) => t.outcome === "win" || t.outcome === "loss");
+          const wr = d.length ? Math.round((ts.filter((t) => t.outcome === "win").length / d.length) * 100) : null;
+          const pnl = ts.reduce((a, t) => a + (t.pnl || 0), 0);
+          return { f, n: ts.length, wr, pnl };
+        }).sort((a, b) => b.pnl - a.pnl);
+        return (
+          <Section T={T} fs={fs} title="By prop firm" sub="Tap a firm in the bar above to filter everything">
+            <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto auto", gap: 8, fontSize: fs.xs, color: T.muted, fontWeight: 800, paddingBottom: 6, borderBottom: `2px solid ${T.border}` }}><span>Firm</span><span>Trades</span><span>WR</span><span>P&L</span></div>
+            {firmRows.map((r) => <div key={r.f} style={{ display: "grid", gridTemplateColumns: "1fr auto auto auto", gap: 8, alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${T.border}`, fontSize: fs.sm }}><span style={{ fontWeight: 700 }}>{r.f}</span><span style={{ textAlign: "right" }}>{r.n}</span><span style={{ textAlign: "right" }}>{r.wr == null ? "—" : r.wr + "%"}</span><span style={{ textAlign: "right", fontFamily: FONT_DISPLAY, fontWeight: 800, color: r.pnl > 0 ? T.buy : r.pnl < 0 ? T.sell : T.text }}>{fmtMoney(r.pnl, cur)}</span></div>)}
+          </Section>
+        );
+      })()}
     </div>
   );
 }
