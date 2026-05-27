@@ -972,7 +972,18 @@ function StatsView({ T, fs, cur, trades, allTrades, flash, selectedFirm }) {
   );
   const pairRows = Array.from(new Set(trades.map((t) => t.instrument))).map((p) => { const ts = trades.filter((t) => t.instrument === p); const d = ts.filter((t) => t.outcome === "win" || t.outcome === "loss"); const wr = d.length ? Math.round((ts.filter((t) => t.outcome === "win").length / d.length) * 100) : null; const pnl = ts.reduce((a, t) => a + (t.pnl || 0), 0); return { p, n: ts.length, wr, pnl }; }).sort((a, b) => b.pnl - a.pnl);
 
-  if (trades.length === 0) return <EmptyNote T={T} fs={fs} text="Log trades to see your performance analytics." />;
+  if (trades.length === 0) return (
+    <div style={{ padding: 12 }}>
+      <Section T={T} fs={fs} title="Import Trades" sub="Upload a previously exported CSV or Excel file">
+        <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" onChange={importFile} style={{ display: "none" }} aria-label="Import trades file" />
+        <button className="fxbtn" onClick={() => fileInputRef.current && fileInputRef.current.click()} style={{ width: "100%", minHeight: 56, borderRadius: 10, border: `2px solid ${T.primary}`, background: T.surface, color: T.primary, fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: fs.md, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+          ⬆ Import Trades (CSV or Excel)
+        </button>
+        <p style={{ fontSize: fs.xs, color: T.muted, marginTop: 8, textAlign: "center" }}>Import a file you previously exported — duplicates are skipped automatically</p>
+      </Section>
+      <EmptyNote T={T} fs={fs} text="No trades yet — log your first trade or import a file above." />
+    </div>
+  );
   return (
     <div>
       <Section T={T} fs={fs} title="Analytics" sub="Performance at a glance">
